@@ -1,0 +1,136 @@
+#encoding=utf-8
+import sys,os
+reload(sys)
+sys.setdefaultencoding('utf-8')
+
+import nltk 
+from lxml import html
+
+if __name__ == "__main__":
+    
+    '读取停止词文件'
+    readStopWord = open('stopwords','r')
+    stopwords = []
+    for line in readStopWord.xreadlines():
+        stopword = line.replace('\n','').replace('\r','')
+        if cmp(stopword,'') == 0:
+            pass
+        else:
+            stopwords.append(stopword)
+    for word in stopwords:
+        if cmp('it', word) == 0:
+            print word
+    tagList = ['JJ', 'JJS', 'RB', 'RBR', 'RBS', 'NN', 'NNS',\
+               'NNP', 'NNPS', 'VB', 'VBD', 'VBG', 'VBP', 'VBZ']
+#     print stopwords
+    
+    files = os.listdir('/home/blade091/EclipseProjects/改-词性标注与去除停止词/newTech/')
+    for fileName in files:
+        
+        filePath = \
+        '/home/blade091/EclipseProjects/改-词性标注与去除停止词/newTech/'\
+        + fileName
+        writeFilePath = \
+        '/home/blade091/EclipseProjects/改-词性标注与去除停止词/newTech_2/'\
+        + fileName
+        writeFile = open(writeFilePath, 'a')
+        
+        '''
+            文章标题部分的处理
+        '''
+        readFile = open(filePath)
+        for line in readFile.xreadlines():
+            if cmp(line, '</title>\n') == 0:
+                writeFile.write(line) 
+                break
+            else:
+                writeFile.write(line) 
+        readFile.close()
+        
+        
+        HTML = open(filePath).read()
+        root = html.fromstring(HTML)
+        '''
+            文章正文部分的处理，根据词性和停止词对词进行筛选
+        '''
+        writeFile.write('<article>' + '\n')
+        article = root.xpath('//article')[0]
+        articleWords = nltk.word_tokenize(article.text)
+        articleWordsTags = nltk.pos_tag(articleWords)
+        for articleWordsTag in articleWordsTags:
+            word = articleWordsTag[0].replace('.','')\
+                    .replace('\"','').replace('\'','')\
+                    .replace('(','').replace(')','')
+            if not word in stopwords and \
+            articleWordsTag[1] in tagList:
+                writeFile.write(word + ' ')
+#                 print word
+        writeFile.write('\n' + '</article>' + '\n')
+        
+        
+        '''
+            文章评论部分的处理
+        '''
+        comments = root.xpath('//comment')
+        for comment in comments:
+            '对评论的处理'
+            commentID = comment.get('commentid')
+            userID = comment.get('userid')
+            timestamp = comment.get('timestamp')
+            upcount = comment.get('upcount')
+            downcount = comment.get('downcount')
+#             print commentID,userID,timestamp,upcount,downcount
+            '首先写入相关信息'
+            writeFile.write('<comment commentID=\"' + commentID + '\"' +\
+                            ' userID=\"' + userID + '\"' + \
+                            ' timestamp=\"' + timestamp + '\"' + \
+                            ' upcount=\"' + upcount + '\"' + \
+                            ' downcount=\"' + downcount + '\"' + '>\n')
+            commentWords = nltk.word_tokenize(comment.text)
+            commentWordsTags = nltk.pos_tag(commentWords)
+            for commentWordsTag in commentWordsTags:
+#                 print commentWordsTag.
+                word = commentWordsTag[0].replace('.','')\
+                        .replace('\"','').replace('\'','')\
+                        .replace('(','').replace(')','')
+                if not word in stopwords and \
+                commentWordsTag[1] in tagList:
+                    writeFile.write(word + ' ')
+                    if cmp(word, 'it') == 0:
+                        print word
+
+            '对评论回复的处理'
+            commentText = html.tostring(comment, pretty_print = True, \
+                    encoding = 'utf-8')
+            commentRoot = html.fromstring(commentText)
+            commentWords = nltk.word_tokenize(comment.text)
+            replies = commentRoot.xpath('//reply')
+            for reply in replies:
+                replyUserID = reply.get('userid')
+                replyTimestamp = reply.get('timestamp')
+                replyUpcount = reply.get('upcount')
+                replyDowncount = reply.get('downcount')
+                writeFile.write( '\n' + '<reply ' 'userID=\"' + replyUserID + '\"' + \
+                            ' timestamp=\"' + replyTimestamp + '\"' + \
+                            ' upcount=\"' + replyUpcount + '\"' + \
+                            ' downcount=\"' + replyDowncount + '\"' + '>\n')
+                replyWords = nltk.word_tokenize(reply.text)
+                replyWordsTags = nltk.pos_tag(replyWords)
+                for replyWordsTag in replyWordsTags:
+    #                 print commentWordsTag
+                    word = replyWordsTag[0].replace('.','')\
+                            .replace('\"','').replace('\'','')\
+                            .replace('(','').replace(')','')
+                    if not word in stopwords and \
+                    replyWordsTag[1] in tagList:
+                        writeFile.write(word + ' ')
+                writeFile.write('\n' + '</reply>')
+#                 print replyUserID, replyTimestamp, replyUpcount, replyDowncount
+            writeFile.write('\n' + '</comment>\n')
+        writeFile.close()
+        
+        
+        
+        
+            
+        
